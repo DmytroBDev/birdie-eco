@@ -139,7 +139,7 @@ function renderChart(feeds) {
     feeds.forEach(f => {
         if (f[cfg.field]) {
             labels.push(fmtTime(f.created_at));
-            values.push(parseFloat(f[cfg.field]));
+            values.push(Math.round(parseFloat(f[cfg.field])));
         }
     });
     chart.data.labels = labels;
