@@ -5,160 +5,241 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
 <style>
-    :root { --bg: #f0f2f5; --card: #fff; --text: #333; --stat-bg: #f8f9fa; --accent: #3498db; }
+    :root { --bg: #f0f2f5; --card: #fff; --text: #333; --stat-bg: #f8f9fa; --accent: #3498db; --border: #e0e0e0; }
     @media (prefers-color-scheme: dark) {
-        :root { --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --stat-bg: #2a2a2a; }
+        :root { --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --stat-bg: #2a2a2a; --border: #333; }
     }
+    * { box-sizing: border-box; }
     body { font-family: sans-serif; text-align: center; background: var(--bg); color: var(--text);
-           margin: 0; padding: 10px; height: 100vh; box-sizing: border-box;
+           margin: 0; padding: 10px; height: 100vh;
            display: flex; flex-direction: column; overflow: hidden; }
     .card { background: var(--card); padding: 15px; border-radius: 15px; max-width: 900px;
-            width: 100%; margin: auto; box-sizing: border-box;
-            display: flex; flex-direction: column; flex-grow: 1; }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+            width: 100%; margin: auto; display: flex; flex-direction: column; flex-grow: 1; }
+
+    /* --- header --- */
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 20px;
                     background: var(--stat-bg); color: #7f8c8d; font-weight: bold; }
+
+    /* --- stat cards --- */
     .main-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     .stat-card { background: var(--stat-bg); padding: 10px; border-radius: 10px;
-                 border-bottom: 3px solid transparent; display: flex; align-items: baseline;
-                 justify-content: center; gap: 4px; white-space: nowrap;
-                 cursor: pointer; transition: opacity 0.2s; }
-    .stat-card:hover { opacity: 0.8; }
-    .stat-card.active { border-bottom-color: currentColor; }
+                 border-bottom: 3px solid transparent;
+                 display: flex; align-items: baseline; justify-content: center; gap: 4px;
+                 white-space: nowrap; cursor: pointer; transition: opacity .15s; }
+    .stat-card:hover { opacity: .75; }
+    .stat-card.active { border-bottom-color: var(--active-color, #3498db); }
     .val { font-size: 22px; font-weight: bold; }
-    .unit { font-size: 12px; color: #7f8c8d; font-weight: normal; }
-    .chart-wrapper { position: relative; flex-grow: 1; width: 100%; margin-top: 15px; min-height: 0; }
+    .unit { font-size: 12px; color: #7f8c8d; }
+
+    /* --- day tabs --- */
+    .day-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 12px 0 0;
+                padding-bottom: 4px; scrollbar-width: none; }
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab { flex-shrink: 0; padding: 5px 14px; border-radius: 20px; font-size: 13px;
+               font-weight: bold; cursor: pointer; border: 2px solid var(--border);
+               background: transparent; color: var(--text); transition: all .15s; }
+    .day-tab:hover { border-color: #3498db; color: #3498db; }
+    .day-tab.active { background: #3498db; border-color: #3498db; color: #fff; }
+
+    /* --- chart --- */
+    .chart-wrapper { position: relative; flex-grow: 1; width: 100%; margin-top: 12px; min-height: 0; }
+    .loading { position: absolute; inset: 0; display: flex; align-items: center;
+               justify-content: center; font-size: 14px; color: #7f8c8d; }
 </style>
 </head><body>
 <div class='card'>
     <div class='header-bar'>
-        <h2 style='color: var(--accent); margin: 0;'>Birdie Eco ☁️</h2>
-        <span id="last_update" class="status-badge">Обновление...</span>
+        <h2 style='color:#3498db; margin:0;'>Birdie Eco ☁️</h2>
+        <span id="last_update" class="status-badge">Загрузка...</span>
     </div>
+
     <div class='main-stats'>
-        <div class='stat-card active' id='tab_co2' onclick="switchField('co2')" style="color:#3498db">
-            <span class='val' id='cur_co2'>...</span><span class='unit'>&nbsp;PPM</span>
+        <div class='stat-card active' id='tab_co2' style='--active-color:#3498db' onclick="switchField('co2')">
+            <span class='val' id='cur_co2' style='color:#3498db'>...</span><span class='unit'>&nbsp;PPM</span>
         </div>
-        <div class='stat-card' id='tab_temp' onclick="switchField('temp')" style="color:#f39c12">
-            <span class='val' id='cur_temp'>...</span><span class='unit'>&nbsp;°C</span>
+        <div class='stat-card' id='tab_temp' style='--active-color:#f39c12' onclick="switchField('temp')">
+            <span class='val' id='cur_temp' style='color:#f39c12'>...</span><span class='unit'>&nbsp;°C</span>
         </div>
-        <div class='stat-card' id='tab_hum' onclick="switchField('hum')" style="color:#2ecc71">
-            <span class='val' id='cur_hum'>...</span><span class='unit'>&nbsp;%</span>
+        <div class='stat-card' id='tab_hum' style='--active-color:#2ecc71' onclick="switchField('hum')">
+            <span class='val' id='cur_hum' style='color:#2ecc71'>...</span><span class='unit'>&nbsp;%</span>
         </div>
     </div>
-    <div class='chart-wrapper'><canvas id='myChart'></canvas></div>
+
+    <div class='day-tabs' id='day_tabs'></div>
+
+    <div class='chart-wrapper'>
+        <div class='loading' id='loading'>Загрузка данных...</div>
+        <canvas id='myChart'></canvas>
+    </div>
 </div>
+
 <script>
-// ---------------- НАСТРОЙКА ----------------
-const CHANNEL_ID  = "3386145";
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const CHANNEL_ID   = "3386145";
 const READ_API_KEY = "0GNVK76ZPA86MJ9N";
+const DAYS_TO_SHOW = 7;   // сколько последних дней показывать во вкладках
 
 const FIELDS = {
-    co2:  { field: "field1", color: "#3498db", label: "CO₂, PPM" },
-    temp: { field: "field2", color: "#f39c12", label: "Температура, °C" },
-    hum:  { field: "field3", color: "#2ecc71", label: "Влажность, %" },
+    co2:  { field: "field1", color: "#3498db" },
+    temp: { field: "field2", color: "#f39c12" },
+    hum:  { field: "field3", color: "#2ecc71" },
 };
 
+// ── STATE ────────────────────────────────────────────────────────────────────
 let currentField = "co2";
-let allFeeds = [];
+let currentDay   = null;   // "YYYY-MM-DD"
+let feedsCache   = {};     // { "YYYY-MM-DD": [...feeds] }
 let chart;
 
-// ---------------- CHART ----------------
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function dateStr(offsetDays = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() - offsetDays);
+    return d.toISOString().slice(0, 10);   // "YYYY-MM-DD"
+}
+
+function fmtTab(dateS, i) {
+    if (i === 0) return "Сегодня";
+    if (i === 1) return "Вчера";
+    // "15 янв"
+    const [, m, d] = dateS.split("-");
+    const months = ["","янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+    return `${parseInt(d)} ${months[parseInt(m)]}`;
+}
+
+function fmtTime(isoStr) {
+    const d = new Date(isoStr);
+    return String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0');
+}
+
+// ── CHART ────────────────────────────────────────────────────────────────────
 function initChart() {
     chart = new Chart(document.getElementById('myChart'), {
         type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                data: [],
-                borderColor: FIELDS.co2.color,
-                fill: true,
-                backgroundColor: "rgba(52,152,219,0.15)",
-                pointRadius: 0,
-                pointHitRadius: 20,
-                pointHoverRadius: 5,
-                tension: 0.3,
-                borderWidth: 2
-            }]
-        },
+        data: { labels: [], datasets: [{
+            data: [], borderColor: FIELDS.co2.color, fill: true,
+            backgroundColor: "rgba(52,152,219,0.15)",
+            pointRadius: 0, pointHitRadius: 20, pointHoverRadius: 5,
+            tension: 0.3, borderWidth: 2
+        }]},
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 0 },
+            responsive: true, maintainAspectRatio: false,
+            animation: { duration: 200 },
             plugins: { legend: { display: false } },
-            scales: {
-                x: { ticks: { maxTicksLimit: 6, maxRotation: 0, minRotation: 0 } }
-            },
+            scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } } },
             interaction: { mode: 'nearest', intersect: false, axis: 'x' }
         }
     });
 }
 
-// ---------------- ПЕРЕКЛЮЧЕНИЕ ПОЛЯ ----------------
+function renderChart(feeds) {
+    const cfg  = FIELDS[currentField];
+    const labels = [], values = [];
+    feeds.forEach(f => {
+        if (f[cfg.field]) {
+            labels.push(fmtTime(f.created_at));
+            values.push(parseFloat(f[cfg.field]));
+        }
+    });
+    chart.data.labels = labels;
+    chart.data.datasets[0].data   = values;
+    chart.data.datasets[0].borderColor     = cfg.color;
+    chart.data.datasets[0].backgroundColor = cfg.color + "26";
+    chart.update('none');
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function buildTabs() {
+    const container = document.getElementById('day_tabs');
+    container.innerHTML = "";
+    for (let i = 0; i < DAYS_TO_SHOW; i++) {
+        const ds  = dateStr(i);
+        const btn = document.createElement('button');
+        btn.className  = "day-tab" + (i === 0 ? " active" : "");
+        btn.textContent = fmtTab(ds, i);
+        btn.dataset.day = ds;
+        btn.onclick = () => selectDay(ds);
+        container.appendChild(btn);
+    }
+}
+
+function selectDay(ds) {
+    currentDay = ds;
+    document.querySelectorAll('.day-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.day === ds);
+    });
+    if (feedsCache[ds]) {
+        renderChart(feedsCache[ds]);
+    } else {
+        loadDay(ds);
+    }
+}
+
+// ── FIELD SWITCH ─────────────────────────────────────────────────────────────
 function switchField(field) {
     currentField = field;
     ["co2","temp","hum"].forEach(f => {
         document.getElementById("tab_" + f).classList.toggle("active", f === field);
     });
-    renderChart();
+    if (feedsCache[currentDay]) renderChart(feedsCache[currentDay]);
 }
 
-function renderChart() {
-    const cfg = FIELDS[currentField];
-    const labels = [];
-    const values = [];
-
-    allFeeds.forEach(f => {
-        if (f[cfg.field]) {
-            const d = new Date(f.created_at);
-            labels.push(
-                String(d.getHours()).padStart(2,'0') + ":" +
-                String(d.getMinutes()).padStart(2,'0')
-            );
-            values.push(parseFloat(f[cfg.field]));
-        }
-    });
-
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = values;
-    chart.data.datasets[0].borderColor = cfg.color;
-    chart.data.datasets[0].backgroundColor = cfg.color + "26"; // ~15% opacity
-    chart.update('none');
-}
-
-// ---------------- ЗАГРУЗКА ДАННЫХ ----------------
-async function loadCloudData() {
+// ── API ───────────────────────────────────────────────────────────────────────
+async function loadDay(ds) {
+    document.getElementById('loading').style.display = 'flex';
     try {
+        const start = ds + "T00:00:00Z";
+        const end   = ds + "T23:59:59Z";
+        const url   = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
+                    + `?api_key=${READ_API_KEY}&start=${start}&end=${end}&results=1500`;
+        const r    = await fetch(url);
+        const data = await r.json();
+        feedsCache[ds] = data.feeds || [];
+        if (currentDay === ds) renderChart(feedsCache[ds]);
+    } catch(e) {
+        console.log("Load error:", e);
+    }
+    document.getElementById('loading').style.display = 'none';
+}
+
+async function loadToday() {
+    const ds = dateStr(0);
+    try {
+        // Берём последние 144 точки (сутки при замере раз в 10 мин)
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
                   + `?api_key=${READ_API_KEY}&results=144`;
-        const response = await fetch(url);
-        const data = await response.json();
-        allFeeds = data.feeds;
+        const r    = await fetch(url);
+        const data = await r.json();
+        feedsCache[ds] = data.feeds || [];
 
-        if (allFeeds.length > 0) {
-            const latest = allFeeds[allFeeds.length - 1];
-
+        if (feedsCache[ds].length > 0) {
+            const latest = feedsCache[ds][feedsCache[ds].length - 1];
             document.getElementById('cur_co2').innerText  = latest.field1 || "–";
             document.getElementById('cur_temp').innerText = latest.field2
                 ? parseFloat(latest.field2).toFixed(1) : "–";
             document.getElementById('cur_hum').innerText  = latest.field3
                 ? parseFloat(latest.field3).toFixed(1) : "–";
-
-            const d = new Date(latest.created_at);
-            const timeStr = String(d.getHours()).padStart(2,'0') + ":"
-                          + String(d.getMinutes()).padStart(2,'0');
-            document.getElementById('last_update').innerText = "Данные от: " + timeStr;
-
-            renderChart();
+            document.getElementById('last_update').innerText =
+                "Данные от: " + fmtTime(latest.created_at);
         }
+
+        if (currentDay === ds) renderChart(feedsCache[ds]);
     } catch(e) {
         document.getElementById('last_update').innerText = "Ошибка загрузки";
-        console.log("Cloud error:", e);
     }
+    document.getElementById('loading').style.display = 'none';
 }
 
+// ── INIT ──────────────────────────────────────────────────────────────────────
 initChart();
-loadCloudData();
-setInterval(loadCloudData, 60000);
+buildTabs();
+currentDay = dateStr(0);
+loadToday();
+
+// Обновляем только сегодня раз в минуту
+setInterval(() => {
+    if (currentDay === dateStr(0)) loadToday();
+}, 60000);
 </script>
 </body></html>
