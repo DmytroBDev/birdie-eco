@@ -1,4 +1,7 @@
-<html><head><meta charset='UTF-8'><title>Birdie Pro Cloud Dashboard</title>
+<!DOCTYPE html>
+<html><head>
+<meta charset='UTF-8'>
+<title>Birdie Pro Cloud Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
 <style>
@@ -6,95 +9,156 @@
     @media (prefers-color-scheme: dark) {
         :root { --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --stat-bg: #2a2a2a; }
     }
-    body {font-family:sans-serif; text-align:center; background: var(--bg); color: var(--text); margin:0; padding:10px; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;}
-    .card {background: var(--card); padding:15px; border-radius:15px; max-width:900px; width: 100%; margin:auto; box-sizing:border-box; display: flex; flex-direction: column; flex-grow: 1;}
-    .header-bar {display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;}
-    .status-badge {font-size: 12px; padding: 4px 8px; border-radius: 20px; background: var(--stat-bg); color: #7f8c8d; font-weight: bold;}
-    .main-stats {display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;}
-    .stat-card {background: var(--stat-bg); padding:10px; border-radius:10px; border-bottom: 2px solid #ddd; display: flex; align-items: baseline; justify-content: center; gap: 4px; white-space: nowrap;}
-    .val {font-size:22px; font-weight:bold;}
-    .unit {font-size:12px; color:#7f8c8d; font-weight:normal;}
-    .chart-wrapper {position: relative; flex-grow: 1; width: 100%; margin-top: 15px; min-height: 0;}
+    body { font-family: sans-serif; text-align: center; background: var(--bg); color: var(--text);
+           margin: 0; padding: 10px; height: 100vh; box-sizing: border-box;
+           display: flex; flex-direction: column; overflow: hidden; }
+    .card { background: var(--card); padding: 15px; border-radius: 15px; max-width: 900px;
+            width: 100%; margin: auto; box-sizing: border-box;
+            display: flex; flex-direction: column; flex-grow: 1; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 20px;
+                    background: var(--stat-bg); color: #7f8c8d; font-weight: bold; }
+    .main-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .stat-card { background: var(--stat-bg); padding: 10px; border-radius: 10px;
+                 border-bottom: 3px solid transparent; display: flex; align-items: baseline;
+                 justify-content: center; gap: 4px; white-space: nowrap;
+                 cursor: pointer; transition: opacity 0.2s; }
+    .stat-card:hover { opacity: 0.8; }
+    .stat-card.active { border-bottom-color: currentColor; }
+    .val { font-size: 22px; font-weight: bold; }
+    .unit { font-size: 12px; color: #7f8c8d; font-weight: normal; }
+    .chart-wrapper { position: relative; flex-grow: 1; width: 100%; margin-top: 15px; min-height: 0; }
 </style>
 </head><body>
 <div class='card'>
     <div class='header-bar'>
         <h2 style='color: var(--accent); margin: 0;'>Birdie Eco ☁️</h2>
-        <span id="last_update" class="status-badge">Обновление: ...</span>
+        <span id="last_update" class="status-badge">Обновление...</span>
     </div>
     <div class='main-stats'>
-        <div class='stat-card'><span class='val' id='cur_co2' style='color:#3498db'>...</span><span class='unit'>&nbsp;PPM</span></div>
-        <div class='stat-card'><span class='val' id='cur_temp' style='color:#f39c12'>...</span><span class='unit'>&nbsp;°C</span></div>
-        <div class='stat-card'><span class='val' id='cur_hum' style='color:#2ecc71'>...</span><span class='unit'>&nbsp;%</span></div>
+        <div class='stat-card active' id='tab_co2' onclick="switchField('co2')" style="color:#3498db">
+            <span class='val' id='cur_co2'>...</span><span class='unit'>&nbsp;PPM</span>
+        </div>
+        <div class='stat-card' id='tab_temp' onclick="switchField('temp')" style="color:#f39c12">
+            <span class='val' id='cur_temp'>...</span><span class='unit'>&nbsp;°C</span>
+        </div>
+        <div class='stat-card' id='tab_hum' onclick="switchField('hum')" style="color:#2ecc71">
+            <span class='val' id='cur_hum'>...</span><span class='unit'>&nbsp;%</span>
+        </div>
     </div>
     <div class='chart-wrapper'><canvas id='myChart'></canvas></div>
 </div>
 <script>
+// ---------------- НАСТРОЙКА ----------------
+const CHANNEL_ID  = "3386145";
+const READ_API_KEY = "0GNVK76ZPA86MJ9N";
+
+const FIELDS = {
+    co2:  { field: "field1", color: "#3498db", label: "CO₂, PPM" },
+    temp: { field: "field2", color: "#f39c12", label: "Температура, °C" },
+    hum:  { field: "field3", color: "#2ecc71", label: "Влажность, %" },
+};
+
+let currentField = "co2";
+let allFeeds = [];
 let chart;
 
-// ---------------- НАСТРОЙКА ОБЛАКА ----------------
-const CHANNEL_ID = "3386145";      // 🔥 Вставь свой ID канала
-const READ_API_KEY = "0GNVK76ZPA86MJ9N";  // 🔥 Вставь свой Read API Key
-
+// ---------------- CHART ----------------
 function initChart() {
     chart = new Chart(document.getElementById('myChart'), {
         type: 'line',
-        data: { labels: [], datasets: [{ data: [], borderColor: '#3498db', fill: true, backgroundColor: 'rgba(52, 152, 219, 0.15)', pointRadius: 0, pointHitRadius: 20, pointHoverRadius: 5, tension: 0.3, borderWidth: 2 }] },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            animation: { duration: 0 }, 
-            plugins: { legend: { display: false } }, 
-            scales: { x: { ticks: { maxTicksLimit: 6, maxRotation: 0, minRotation: 0 } } }, 
-            interaction: { mode: 'nearest', intersect: false, axis: 'x' } 
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: FIELDS.co2.color,
+                fill: true,
+                backgroundColor: "rgba(52,152,219,0.15)",
+                pointRadius: 0,
+                pointHitRadius: 20,
+                pointHoverRadius: 5,
+                tension: 0.3,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 0 },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 6, maxRotation: 0, minRotation: 0 } }
+            },
+            interaction: { mode: 'nearest', intersect: false, axis: 'x' }
         }
     });
 }
 
+// ---------------- ПЕРЕКЛЮЧЕНИЕ ПОЛЯ ----------------
+function switchField(field) {
+    currentField = field;
+    ["co2","temp","hum"].forEach(f => {
+        document.getElementById("tab_" + f).classList.toggle("active", f === field);
+    });
+    renderChart();
+}
+
+function renderChart() {
+    const cfg = FIELDS[currentField];
+    const labels = [];
+    const values = [];
+
+    allFeeds.forEach(f => {
+        if (f[cfg.field]) {
+            const d = new Date(f.created_at);
+            labels.push(
+                String(d.getHours()).padStart(2,'0') + ":" +
+                String(d.getMinutes()).padStart(2,'0')
+            );
+            values.push(parseFloat(f[cfg.field]));
+        }
+    });
+
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = values;
+    chart.data.datasets[0].borderColor = cfg.color;
+    chart.data.datasets[0].backgroundColor = cfg.color + "26"; // ~15% opacity
+    chart.update('none');
+}
+
+// ---------------- ЗАГРУЗКА ДАННЫХ ----------------
 async function loadCloudData() {
     try {
-        // Запрашиваем последние 144 фида (за последние сутки при интервале 10 минут)
-        let url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=144`;
+        const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
+                  + `?api_key=${READ_API_KEY}&results=144`;
         const response = await fetch(url);
         const data = await response.json();
-        const feeds = data.feeds;
+        allFeeds = data.feeds;
 
-        if (feeds.length > 0) {
-            const latest = feeds[feeds.length - 1];
-            
-            // Выводим текущие крупные показатели в табло
-            document.getElementById('cur_co2').innerText = latest.field1 || "0";
-            document.getElementById('cur_temp').innerText = latest.field2 ? parseFloat(latest.field2).toFixed(1) : "...";
-            document.getElementById('cur_hum').innerText = latest.field3 ? parseFloat(latest.field3).toFixed(1) : "...";
-            
-            // Форматируем время последнего обновления
-            let upDate = new Date(latest.created_at);
-            let timeStr = String(upDate.getHours()).padStart(2,'0') + ":" + String(upDate.getMinutes()).padStart(2,'0');
+        if (allFeeds.length > 0) {
+            const latest = allFeeds[allFeeds.length - 1];
+
+            document.getElementById('cur_co2').innerText  = latest.field1 || "–";
+            document.getElementById('cur_temp').innerText = latest.field2
+                ? parseFloat(latest.field2).toFixed(1) : "–";
+            document.getElementById('cur_hum').innerText  = latest.field3
+                ? parseFloat(latest.field3).toFixed(1) : "–";
+
+            const d = new Date(latest.created_at);
+            const timeStr = String(d.getHours()).padStart(2,'0') + ":"
+                          + String(d.getMinutes()).padStart(2,'0');
             document.getElementById('last_update').innerText = "Данные от: " + timeStr;
 
-            // Строим суточный график CO2
-            let labels = [];
-            let values = [];
-            
-            feeds.forEach(f => {
-                if (f.field1) {
-                    let d = new Date(f.created_at);
-                    labels.push(String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0'));
-                    values.push(parseInt(f.field1));
-                }
-            });
-
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = values;
-            chart.update('none');
+            renderChart();
         }
     } catch(e) {
-        console.log("Ошибка загрузки данных из облака:", e);
+        document.getElementById('last_update').innerText = "Ошибка загрузки";
+        console.log("Cloud error:", e);
     }
 }
 
 initChart();
 loadCloudData();
-// Раз в минуту проверяем облако на наличие свежих замеров
 setInterval(loadCloudData, 60000);
-</script></body></html>
+</script>
+</body></html>
