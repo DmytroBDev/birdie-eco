@@ -237,9 +237,14 @@ buildTabs();
 currentDay = dateStr(0);
 loadToday();
 
-// Обновляем только сегодня раз в минуту
+// 🔥 Обновление через visibilitychange — сразу когда открываешь вкладку
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && currentDay === dateStr(0)) loadToday();
+});
+
+// 🔥 И по таймеру раз в 10 минут (смысл чаще не опрашивать — ESP спит 10 мин)
 setInterval(() => {
     if (currentDay === dateStr(0)) loadToday();
-}, 60000);
+}, 600000);
 </script>
 </body></html>
