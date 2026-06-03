@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html><head>
 <meta charset='UTF-8'>
-<title>Birdie Pro Cloud Dashboard</title>
+<title>Birdie Eco</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3498db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Birdie Eco">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
 <style>
@@ -206,9 +212,11 @@ async function loadDay(ds) {
 async function loadToday() {
     const ds = dateStr(0);
     try {
-        // Берём последние 144 точки (сутки при замере раз в 10 мин)
+        // 🔥 Только сегодняшние данные — фильтр по дате
+        const todayStart = dateStr(0) + "T00:00:00Z";
+        const todayEnd   = dateStr(0) + "T23:59:59Z";
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
-                  + `?api_key=${READ_API_KEY}&results=144`;
+                  + `?api_key=${READ_API_KEY}&start=${todayStart}&end=${todayEnd}&results=1500`;
         const r    = await fetch(url);
         const data = await r.json();
         feedsCache[ds] = data.feeds || [];
@@ -246,5 +254,10 @@ document.addEventListener("visibilitychange", () => {
 setInterval(() => {
     if (currentDay === dateStr(0)) loadToday();
 }, 600000);
+
+// Регистрация PWA сервис-воркера
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
 </script>
 </body></html>
