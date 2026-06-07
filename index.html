@@ -102,7 +102,23 @@ let chart;
 function dateStr(offsetDays = 0) {
     const d = new Date();
     d.setDate(d.getDate() - offsetDays);
-    return d.toISOString().slice(0, 10);   // "YYYY-MM-DD"
+    // 🔥 Локальная дата (не UTC) — чтобы вкладки соответствовали реальному дню
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+// Строим UTC границы суток для ThingSpeak с учётом локального часового пояса
+function dayBounds(ds) {
+    const tz = new Date().getTimezoneOffset(); // минуты, например -180 для UTC+3
+    // Начало суток по местному времени = ds T00:00 + tzOffset в UTC
+    const startUTC = new Date(ds + "T00:00:00Z");
+    startUTC.setMinutes(startUTC.getMinutes() + tz); // сдвигаем в UTC
+    const endUTC = new Date(ds + "T23:59:59Z");
+    endUTC.setMinutes(endUTC.getMinutes() + tz);
+    const fmt = d => d.toISOString().slice(0,19).replace("T", "%20");
+    return { start: fmt(startUTC), end: fmt(endUTC) };
 }
 
 function fmtTab(dateS, i) {
@@ -195,11 +211,7 @@ function switchField(field) {
 async function loadDay(ds) {
     document.getElementById('loading').style.display = 'flex';
     try {
-        const tzOffset = new Date().getTimezoneOffset() * 60000;
-        const start = new Date(new Date(ds + "T00:00:00").getTime() - tzOffset)
-                        .toISOString().slice(0,19).replace("T", "%20");
-        const end   = new Date(new Date(ds + "T23:59:59").getTime() - tzOffset)
-                        .toISOString().slice(0,19).replace("T", "%20");
+        const { start, end } = dayBounds(ds);
         const url   = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
                     + `?api_key=${READ_API_KEY}&start=${start}&end=${end}&results=1500`;
         const r    = await fetch(url);
@@ -216,11 +228,7 @@ async function loadToday() {
     const ds = dateStr(0);
     try {
         // 🔥 Только сегодняшние данные с учётом локального часового пояса
-        const tzOffset  = new Date().getTimezoneOffset() * 60000; // мс
-        const dayStart  = new Date(new Date(dateStr(0) + "T00:00:00").getTime() - tzOffset);
-        const dayEnd    = new Date(new Date(dateStr(0) + "T23:59:59").getTime() - tzOffset);
-        const todayStart = dayStart.toISOString().slice(0,19).replace("T", "%20");
-        const todayEnd   = dayEnd.toISOString().slice(0,19).replace("T", "%20");
+        const { start: todayStart, end: todayEnd } = dayBounds(dateStr(0));
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
                   + `?api_key=${READ_API_KEY}&start=${todayStart}&end=${todayEnd}&results=1500`;
         const r    = await fetch(url);
