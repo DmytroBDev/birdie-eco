@@ -195,8 +195,11 @@ function switchField(field) {
 async function loadDay(ds) {
     document.getElementById('loading').style.display = 'flex';
     try {
-        const start = ds + "T00:00:00Z";
-        const end   = ds + "T23:59:59Z";
+        const tzOffset = new Date().getTimezoneOffset() * 60000;
+        const start = new Date(new Date(ds + "T00:00:00").getTime() - tzOffset)
+                        .toISOString().slice(0,19).replace("T", "%20");
+        const end   = new Date(new Date(ds + "T23:59:59").getTime() - tzOffset)
+                        .toISOString().slice(0,19).replace("T", "%20");
         const url   = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
                     + `?api_key=${READ_API_KEY}&start=${start}&end=${end}&results=1500`;
         const r    = await fetch(url);
@@ -212,9 +215,12 @@ async function loadDay(ds) {
 async function loadToday() {
     const ds = dateStr(0);
     try {
-        // 🔥 Только сегодняшние данные — фильтр по дате
-        const todayStart = dateStr(0) + "T00:00:00Z";
-        const todayEnd   = dateStr(0) + "T23:59:59Z";
+        // 🔥 Только сегодняшние данные с учётом локального часового пояса
+        const tzOffset  = new Date().getTimezoneOffset() * 60000; // мс
+        const dayStart  = new Date(new Date(dateStr(0) + "T00:00:00").getTime() - tzOffset);
+        const dayEnd    = new Date(new Date(dateStr(0) + "T23:59:59").getTime() - tzOffset);
+        const todayStart = dayStart.toISOString().slice(0,19).replace("T", "%20");
+        const todayEnd   = dayEnd.toISOString().slice(0,19).replace("T", "%20");
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
                   + `?api_key=${READ_API_KEY}&start=${todayStart}&end=${todayEnd}&results=1500`;
         const r    = await fetch(url);
