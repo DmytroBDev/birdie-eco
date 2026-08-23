@@ -217,7 +217,12 @@ function renderBattery(latest) {
     const badge = document.getElementById('cur_batt');
     if (latest && latest.field4 !== null && latest.field4 !== undefined && latest.field4 !== "") {
         const p = Math.round(parseFloat(latest.field4));
-        badge.innerText = "🔋 " + p + "%";
+        let text = "🔋 " + p + "%";
+        if (latest.field5 !== null && latest.field5 !== undefined && latest.field5 !== "") {
+            const v = parseFloat(latest.field5).toFixed(2);
+            text += " (" + v + "В)";
+        }
+        badge.innerText = text;
         badge.style.color = p <= 20 ? "#e74c3c" : (p <= 50 ? "#f39c12" : "#7f8c8d");
     } else {
         badge.innerText = "🔋 --%";
