@@ -24,8 +24,10 @@
 
     /* --- header --- */
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
     .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 20px;
                     background: var(--stat-bg); color: #7f8c8d; font-weight: bold; }
+    .battery-badge { font-size: 11px; color: #7f8c8d; font-weight: bold; white-space: nowrap; }
 
     /* --- stat cards --- */
     .main-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
@@ -57,7 +59,10 @@
 <div class='card'>
     <div class='header-bar'>
         <h2 style='color:#3498db; margin:0;'>🐤 Birdie Eco</h2>
-        <span id="last_update" class="status-badge">Загрузка...</span>
+        <div class="header-right">
+            <span id="cur_batt" class="battery-badge">🔋 --%</span>
+            <span id="last_update" class="status-badge">Загрузка...</span>
+        </div>
     </div>
 
     <div class='main-stats'>
@@ -207,6 +212,19 @@ function switchField(field) {
     if (feedsCache[currentDay]) renderChart(feedsCache[currentDay]);
 }
 
+// ── BATTERY ──────────────────────────────────────────────────────────────────
+function renderBattery(latest) {
+    const badge = document.getElementById('cur_batt');
+    if (latest && latest.field4 !== null && latest.field4 !== undefined && latest.field4 !== "") {
+        const p = Math.round(parseFloat(latest.field4));
+        badge.innerText = "🔋 " + p + "%";
+        badge.style.color = p <= 20 ? "#e74c3c" : (p <= 50 ? "#f39c12" : "#7f8c8d");
+    } else {
+        badge.innerText = "🔋 --%";
+        badge.style.color = "#7f8c8d";
+    }
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 async function loadDay(ds) {
     document.getElementById('loading').style.display = 'flex';
@@ -244,6 +262,7 @@ async function loadToday() {
                 ? parseFloat(latest.field3).toFixed(1) : "–";
             document.getElementById('last_update').innerText =
                 "Данные от: " + fmtTime(latest.created_at);
+            renderBattery(latest);
         }
 
         if (currentDay === ds) renderChart(feedsCache[ds]);
